@@ -1,61 +1,92 @@
 ---
-- name: Manage Multiple Forward and Reverse DNS Records
+- name: Manage DNS zones and records (Forward & Reverse)
   hosts: dc_dns
   gather_facts: no
+  become: no     # Windows에서 sudo 안씀 (중요)
 
   vars:
-    # 모든 DNS 레코드 한 리스트에 포함
+    dns_forward_zone: "vclass.local"
+    dns_reverse_zone_mgmt: "10.10.10.in-addr.arpa"
+    dns_reverse_zone_prod: "15.10.10.in-addr.arpa"
+
     DNS_Records:
       # === Mgmt (ansible only) ===
-      - { name: ansible, ip: 10.10.10.2 }
+      - { name: ansible,            ip: 10.10.10.2 }
 
       # === Production ===
-      - { name: prod-k8s-api,          ip: 10.10.15.10 }
-      - { name: prod-k8s-api-proxy01,  ip: 10.10.15.11 }
-      - { name: prod-k8s-api-proxy02,  ip: 10.10.15.12 }
-      - { name: prod-k8s-cp-01,        ip: 10.10.15.21 }
-      - { name: prod-k8s-cp-02,        ip: 10.10.15.22 }
-      - { name: prod-k8s-cp-03,        ip: 10.10.15.23 }
-      - { name: prod-k8s-worker-01,    ip: 10.10.15.31 }
-      - { name: prod-k8s-worker-02,    ip: 10.10.15.32 }
-      - { name: prod-k8s-worker-03,    ip: 10.10.15.33 }
+      - { name: prod-k8s-api,       ip: 10.10.15.10 }
+      - { name: prod-k8s-api-proxy01, ip: 10.10.15.11 }
+      - { name: prod-k8s-api-proxy02, ip: 10.10.15.12 }
+      - { name: prod-k8s-cp-01,     ip: 10.10.15.21 }
+      - { name: prod-k8s-cp-02,     ip: 10.10.15.22 }
+      - { name: prod-k8s-cp-03,     ip: 10.10.15.23 }
+      - { name: prod-k8s-worker-01, ip: 10.10.15.31 }
+      - { name: prod-k8s-worker-02, ip: 10.10.15.32 }
+      - { name: prod-k8s-worker-03, ip: 10.10.15.33 }
 
   tasks:
-    # ================================
-    # 1. 정방향 (A Record)
-    # ================================
-    - name: Add Forward DNS records
+    # ============================
+    # 0. 존 먼저 보장 (없으면 생성)
+    # ============================
+
+    - name: Ensure forward zone exists (vclass.local)
+      community.windows.win_dns_zone:
+        name: "{{ dns_forward_zone }}"
+        state: present
+        type: primary          # AD 통합이면 primary + replication_scope=domain
+        replication_scope: domain
+
+    - name: Ensure reverse zone exists for Mgmt (10.10.10.x)
+      community.windows.win_dns_zone:
+        name: "{{ dns_reverse_zone_mgmt }}"
+        state: present
+        type: primary
+        replication_scope: domain
+
+    - name: Ensure reverse zone exists for Production (10.10.15.x)
+      community.windows.win_dns_zone:
+        name: "{{ dns_reverse_zone_prod }}"
+        state: present
+        type: primary
+        replication_scope: domain
+
+    # ============================
+    # 1. 정방향 A 레코드
+    # ============================
+
+    - name: Add Forward DNS records (A)
       community.windows.win_dns_record:
         state: present
         name: "{{ item.name }}"
         type: "A"
         value: "{{ item.ip }}"
-        zone: "vclass.local"
+        zone: "{{ dns_forward_zone }}"
       loop: "{{ DNS_Records }}"
-      ignore_errors: true
 
-    # ================================
-    # 2. 역방향 (PTR Record)
-    # Mgmt와 Prod는 Reverse Zone이 다르니까 조건 분기 사용
-    # ================================
+    # ============================
+    # 2. 역방향 PTR (Mgmt)
+    # ============================
+
     - name: Add Reverse DNS records for Mgmt (10.10.10.x)
       community.windows.win_dns_record:
         state: present
-        name: "{{ item.ip.split('.')[-1] }}"     # 마지막 옥텟
+        name: "{{ item.ip.split('.')[-1] }}"     # 마지막 옥텟 (예: 2)
         type: "PTR"
-        value: "{{ item.name }}.vclass.local"
-        zone: "10.10.10.in-addr.arpa"
+        value: "{{ item.name }}.{{ dns_forward_zone }}"
+        zone: "{{ dns_reverse_zone_mgmt }}"
       loop: "{{ DNS_Records }}"
-      when: item.ip.startswith('10.10.10.')
-      ignore_errors: true
+      when: item.ip is match('^10\.10\.10\.')
+
+    # ============================
+    # 3. 역방향 PTR (Prod)
+    # ============================
 
     - name: Add Reverse DNS records for Production (10.10.15.x)
       community.windows.win_dns_record:
         state: present
-        name: "{{ item.ip.split('.')[-1] }}"
+        name: "{{ item.ip.split('.')[-1] }}"     # 마지막 옥텟 (예: 10, 11, 21...)
         type: "PTR"
-        value: "{{ item.name }}.vclass.local"
-        zone: "15.10.10.in-addr.arpa"
+        value: "{{ item.name }}.{{ dns_forward_zone }}"
+        zone: "{{ dns_reverse_zone_prod }}"
       loop: "{{ DNS_Records }}"
-      when: item.ip.startswith('10.10.15.')
-      ignore_errors: true
+      when: item.ip is match('^10\.10\.15\.')
