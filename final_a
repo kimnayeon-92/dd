@@ -194,18 +194,20 @@
   #   loop: "{{ LAB_SID }}"
   #   delegate_to: localhost
 
-- name: 06. Remove Lab DC vm # 가상머신 삭제
-  community.vmware.vmware_guest:
-    hostname: "{{ vcenter_hostname }}"
-    username: "{{ vcenter_username }}"
-    password: "{{ vcenter_password }}"
-    validate_certs: no
-    name: "{{ LAB_SID[0].id }}-DC{{ item }}"
-    datacenter: "{{ datacenter_name }}"
-    folder: "{{ parent_folder }}{{ LAB_SID[0].id }}"
-    state: absent
-  loop: "{{ range(1, 6) | list }}"
-  delegate_to: localhost
+
+    - name: 06. Remove Lab DC vm # 가상머신 삭제
+      community.vmware.vmware_guest:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        name: "{{ LAB_SID[0].id }}-DC{{ item }}"
+        datacenter: "{{ datacenter_name }}"
+        folder: "{{ parent_folder }}{{ LAB_SID[0].id }}"
+        state: absent
+      loop: "{{ range(1, 6) | list }}"
+      delegate_to: localhost
+      tags: [remove]
 
 
 
