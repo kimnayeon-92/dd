@@ -1,0 +1,238 @@
+---
+- name: Deploy Ansible Lab
+  hosts: localhost
+  gather_facts: no
+  vars:
+    ansible_python_interpreter: /bin/python3
+    vcenter_hostname: "vcsa.vclass.rapa"
+    vcenter_username: "administrator@vsphere.local"
+    vcenter_password: "VMware123!"
+    datacenter_name: "RAPA" 
+    esxi_username: "root"
+    esxi_password: "VMware123!"
+    parent_folder: "3.Class/" 
+    snapshot_name: "Setup"
+    prod_pg: "{{LAB_SID[0].id}}-PROD"
+
+    netmask: "255.255.255.0"
+    gateway: "10.10.15.1"
+    dns_servers:
+      - "10.10.15.10"
+
+    LAB_VM_IPS:
+      - {vm_name:"{{LAB_SID[0].id}}-DC1", ip_addr:"10.10.15.10"}
+      - {vm_name:"{{LAB_SID[0].id}}-DC2", ip_addr:"10.10.15.11"}
+      - {vm_name:"{{LAB_SID[0].id}}-DC3", ip_addr:"10.10.15.12"}
+      - {vm_name:"{{LAB_SID[0].id}}-DC4", ip_addr:"10.10.15.21"}
+      - {vm_name:"{{LAB_SID[0].id}}-DC5", ip_addr:"10.10.15.22"}
+      - {vm_name:"{{LAB_SID[0].id}}-DC6", ip_addr:"10.10.15.23"}
+      - {vm_name:"{{LAB_SID[0].id}}-DC7", ip_addr:"10.10.15.31"}
+      - {vm_name:"{{LAB_SID[0].id}}-DC8", ip_addr:"10.10.15.32"}
+      - {vm_name:"{{LAB_SID[0].id}}-DC9", ip_addr:"10.10.15.33"}
+
+
+    LAB_SID: 
+    # - { id: S00, host: esx-01.vclass.rapa, ds: vSAN-ESX-01, Temp_DC: Temp-WinSvr-ESX-01, Temp_Desktop: Temp-Desktop-ESX-01 }
+    # - { id: S01, host: esx-01.vclass.rapa, ds: vSAN-ESX-01, Temp_DC: Temp-WinSvr-ESX-01, Temp_Desktop: Temp-Desktop-ESX-01 }
+    # - { id: S02, host: esx-01.vclass.rapa, ds: vSAN-ESX-01, Temp_DC: Temp-WinSvr-ESX-01, Temp_Desktop: Temp-Desktop-ESX-01 }
+    # - { id: S03, host: esx-01.vclass.rapa, ds: vSAN-ESX-01, Temp_DC: Temp-WinSvr-ESX-01, Temp_Desktop: Temp-Desktop-ESX-01 }
+    # - { id: S04, host: esx-01.vclass.rapa, ds: vSAN-ESX-01, Temp_DC: Temp-WinSvr-ESX-01, Temp_Desktop: Temp-Desktop-ESX-01 }
+     - { id: S05, host: esx-02.vclass.rapa, ds: vSAN-ESX-02, Temp_DC: Temp-Server-ESX-02, Temp_Desktop: Temp-Desktop-ESX-02 }
+    # - { id: S06, host: esx-02.vclass.rapa, ds: vSAN-ESX-02, Temp_DC: Temp-WinSvr-ESX-02, Temp_Desktop: Temp-Desktop-ESX-02 }
+    # - { id: S07, host: esx-02.vclass.rapa, ds: vSAN-ESX-02, Temp_DC: Temp-WinSvr-ESX-02, Temp_Desktop: Temp-Desktop-ESX-02 }
+    # - { id: S08, host: esx-02.vclass.rapa, ds: vSAN-ESX-02, Temp_DC: Temp-WinSvr-ESX-02, Temp_Desktop: Temp-Desktop-ESX-02 }
+    # - { id: S09, host: esx-02.vclass.rapa, ds: vSAN-ESX-02, Temp_DC: Temp-WinSvr-ESX-02, Temp_Desktop: Temp-Desktop-ESX-02 }
+
+    LAB_PGs:
+    - { name: -Trunk,   vid: 4095 }
+    - { name: -Mgmt,    vid:   10 }
+    - { name: -PROD,    vid: 15}
+
+  tasks:
+  # - name: 01. Create LAB VM Folder
+  #   community.vmware.vcenter_folder:
+  #     hostname: "{{ vcenter_hostname }}"
+  #     username: "{{ vcenter_username }}"
+  #     password: "{{ vcenter_password }}"
+  #     validate_certs: no
+  #     datacenter: "{{ datacenter_name }}"
+  #     folder_type: vm
+  #     folder_name: "{{ item.id }}"
+  #     parent_folder: "{{ parent_folder }}"
+  #     state: present
+  #   loop: "{{ LAB_SID }}"
+  #   delegate_to: localhost
+
+
+  # - name: 02. Assign Permission to VM folder
+  #   community.vmware.vmware_object_role_permission:
+  #     hostname: "{{ vcenter_hostname }}"
+  #     username: "{{ vcenter_username }}"
+  #     password: "{{ vcenter_password }}"
+  #     validate_certs: false
+  #     role: Administrator
+  #     principal: "vclass.rapa\\{{ item.id }}"
+  #     object_name: '{{ item.id }}'
+  #     state: present
+  #   loop: "{{ LAB_SID }}"
+  #   delegate_to: localhost
+
+
+  # - name: 03. Create LAB Standard vSwitch
+  #   community.vmware.vmware_vswitch:
+  #     hostname: "{{ item.host }}"
+  #     username: "{{ esxi_username }}"
+  #     password: "{{ esxi_password }}"
+  #     validate_certs: no
+  #     switch: "{{ item.id }}"
+  #     mtu: 9000
+  #     security:
+  #       promiscuous_mode: True
+  #       mac_changes: True
+  #       forged_transmits: True      
+  #   loop: "{{ LAB_SID }}"
+  #   delegate_to: localhost
+
+
+  # - name: Waiting previous task complated
+  #   wait_for:
+  #     timeout: 10
+  #   delegate_to: localhost
+
+
+  # - name: 04. Adding LAB Portgroups to LAB Switch
+  #   community.vmware.vmware_portgroup:
+  #     hostname: "{{ item[0].host }}"
+  #     username: "{{ esxi_username }}"
+  #     password: "{{ esxi_password }}"
+  #     esxi_hostname: "{{ item[0].host }}"
+  #     validate_certs: no
+  #     switch: "{{ item[0].id }}"
+  #     portgroup: "{{ item[0].id }}{{ item[1].name }}"
+  #     vlan_id: "{{ item[1].vid }}"
+  #   loop: "{{ LAB_SID | product(LAB_PGs) | list }}"
+  #   delegate_to: localhost
+
+
+
+  - name: 05. Deploy Lab DC vm
+    community.vmware.vmware_guest:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: no
+      name: "{{ LAB_SID[0].id }}-DC{{item}}"
+      datacenter: "{{ datacenter_name }}"
+      folder: "{{ parent_folder }}{{ LAB_SID[0].id }}"
+      esxi_hostname: "{{ LAB_SID[0].host }}"
+      datastore: "{{ LAB_SID[0].ds }}"
+      template: "{{ LAB_SID[0].Temp_DC }}"
+      linked_clone: True
+      snapshot_src: "{{ snapshot_name }}"
+      state: poweredon
+      wait_for_ip_address: True
+
+      networks:
+        - name: "{{ LAB_SID[0].id }}-PROD"
+          type: static
+          ip: "{{ LAB_VM_IPS[item-1].ip_addr }}"
+          netmask: "{{ netmask }}"
+          gateway: "{{ gateway }}"
+          dns_servers: "{{ dns_servers }}"
+    loop: "{{ range(1, 10) | list }}"
+    delegate_to: localhost
+
+
+  # - name: 06. Change Lab DC vm networks
+  #   community.vmware.vmware_guest:
+  #     hostname: "{{ vcenter_hostname }}"
+  #     username: "{{ vcenter_username }}"
+  #     password: "{{ vcenter_password }}"
+  #     validate_certs: no
+  #     name: "{{ item.id }}-DC"
+  #     datacenter: "{{ datacenter_name }}"
+  #     folder: "{{ parent_folder }}{{ item.id }}"
+  #     esxi_hostname: "{{ item.host }}"
+  #     datastore: "{{ item.ds }}"
+  #     networks:
+  #       - name: "{{ item.id }}-Trunk"
+  #         label: "Network adapter 1"
+  #       - name: "VM-192.168.1.x"
+  #         label: "Network adapter 2"
+  #   loop: "{{ LAB_SID }}"
+  #   delegate_to: localhost
+
+
+  # - name: 08. Poweron Lab DC vm
+  #   community.vmware.vmware_guest:
+  #     hostname: "{{ vcenter_hostname }}"
+  #     username: "{{ vcenter_username }}"
+  #     password: "{{ vcenter_password }}"
+  #     validate_certs: no
+  #     name: "{{ item.id }}-DC"
+  #     state: "poweredon"
+  #   loop: "{{ LAB_SID }}"
+  #   delegate_to: localhost
+
+
+  # - name: 09. Deploy Lab Desktop vm
+  #   community.vmware.vmware_guest:
+  #     hostname: "{{ vcenter_hostname }}"
+  #     username: "{{ vcenter_username }}"
+  #     password: "{{ vcenter_password }}"
+  #     validate_certs: no
+  #     name: "{{ item.id }}-Desktop"
+  #     datacenter: "{{ datacenter_name }}"
+  #     folder: "{{ parent_folder }}{{ item.id }}"
+  #     esxi_hostname: "{{ item.host }}"
+  #     datastore: "{{ item.ds }}"
+  #     template: "{{ item.Temp_Desktop}}"
+  #     linked_clone: True
+  #     snapshot_src: "{{ snapshot_name }}"
+  #   loop: "{{ LAB_SID }}"
+  #   delegate_to: localhost
+
+
+  # - name: 10. Change Lab Desktop vm networks
+  #   community.vmware.vmware_guest:
+  #     hostname: "{{ vcenter_hostname }}"
+  #     username: "{{ vcenter_username }}"
+  #     password: "{{ vcenter_password }}"
+  #     validate_certs: no
+  #     name: "{{ item.id }}-Desktop"
+  #     datacenter: "{{ datacenter_name }}"
+  #     folder: "{{ parent_folder }}{{ item.id }}"
+  #     esxi_hostname: "{{ item.host }}"
+  #     datastore: "{{ item.ds }}"
+  #      networks:
+  #       - name: "{{ item.id }}-Mgmt"
+  #         label: "Network adapter 1"
+  #   loop: "{{ LAB_SID }}"
+  #   delegate_to: localhost
+
+
+  # - name: 11. Poweron Lab Desktop vm
+  #   community.vmware.vmware_guest:
+  #     hostname: "{{ vcenter_hostname }}"
+  #     username: "{{ vcenter_username }}"
+  #     password: "{{ vcenter_password }}"
+  #     validate_certs: no
+  #     name: "{{ item.id }}-Desktop"
+  #     state: "poweredon"
+  #   loop: "{{ LAB_SID }}"
+  #   delegate_to: localhost
+
+
+    # - name: 12. Remove Lab DC vm # 가상머신 삭제
+    #   community.vmware.vmware_guest:
+    #     hostname: "{{ vcenter_hostname }}"
+    #     username: "{{ vcenter_username }}"
+    #     password: "{{ vcenter_password }}"
+    #     validate_certs: no
+    #     name: "{{ LAB_SID[0].id }}-DC{{ item }}"
+    #     datacenter: "{{ datacenter_name }}"
+    #     folder: "{{ parent_folder }}{{ LAB_SID[0].id }}"
+    #     state: absent
+    #   loop: "{{ range(1, 6) | list }}"
+    #   delegate_to: localhost
+    #   tags: [remove]
